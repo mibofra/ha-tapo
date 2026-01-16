@@ -55,8 +55,9 @@ class TapoButtonCoordinator(DataUpdateCoordinator):
                         log_id = log_entry.get("id")
                         if log_id and log_id > self._last_processed_id:
                             new_events.append(log_entry)
+                            click_type = log_entry.get("click_type", "unknown")
                             _LOGGER.info("New button event detected: %s (ID: %s)", 
-                                       log_entry.get("click_type"), log_id)
+                                       click_type, log_id)
                     
                     if new_events:
                         self._last_processed_id = new_events[0].get("id")
@@ -79,12 +80,14 @@ class TapoButtonCoordinator(DataUpdateCoordinator):
             timestamp = event.get("timestamp")
             event_id = event.get("id")
             
-            if click_type == "SingleClick":
+            click_type_lower = click_type.lower()
+            if "single" in click_type_lower and "click" in click_type_lower:
                 event_type = "single_click"
-            elif click_type == "DoubleClick":
+            elif "double" in click_type_lower and "click" in click_type_lower:
                 event_type = "double_click"
             else:
                 event_type = click_type.lower().replace("click", "_click")
+                _LOGGER.warning("Unknown click type: %s, using: %s", click_type, event_type)
             
             self.hass.bus.async_fire(
                 f"{DOMAIN}_button_pressed",
@@ -116,7 +119,13 @@ class TapoButtonSensor(CoordinatorEntity, SensorEntity):
         last_event = self.coordinator.data.get("last_event")
         if last_event:
             click_type = last_event.get("click_type", "unknown")
-            return click_type.replace("Click", " Click")
+            click_type_lower = click_type.lower()
+            if "single" in click_type_lower and "click" in click_type_lower:
+                return "Single Click"
+            elif "double" in click_type_lower and "click" in click_type_lower:
+                return "Double Click"
+            else:
+                return click_type.replace("Click", " Click").replace("_", " ").title()
         return None
 
     @property
