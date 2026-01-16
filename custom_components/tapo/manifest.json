@@ -1,6 +1,6 @@
 {
   "domain": "tapo",
-  "name": "Tapo",
+  "name": "Tapo S200B Listener",
   "codeowners": ["@identity-labs"],
   "config_flow": true,
   "dependencies": [],
