@@ -1,0 +1,4 @@
+DOMAIN = "tapo"
+DEFAULT_TIMEOUT = 30
+CONF_HOST = "host"
+

@@ -1,0 +1,99 @@
+# Tapo Home Assistant Integration
+
+Home Assistant custom component for TP-Link Tapo devices, with support for S200B smart button sensors.
+
+## Features
+
+- Support for Tapo S200B smart button devices
+- **Button click detection** - Detects single and double clicks
+- Battery status monitoring
+- Device information sensors (model, firmware version, MAC address, etc.)
+- Local polling (no cloud required)
+- Home Assistant events for button presses
+
+## Installation
+
+### HACS (Recommended)
+
+1. Add this repository to HACS as a custom repository
+2. Install "Tapo" from HACS
+3. Restart Home Assistant
+4. Add the integration via Settings > Devices & Services
+
+### Manual Installation
+
+1. Copy the `custom_components/tapo` folder to your Home Assistant `custom_components` directory
+2. Restart Home Assistant
+3. Add the integration via Settings > Devices & Services
+
+## Configuration
+
+1. Go to Settings > Devices & Services
+2. Click "Add Integration"
+3. Search for "Tapo"
+4. Enter your Tapo account credentials:
+   - Username: Your Tapo account email/username
+   - Password: Your Tapo account password
+   - Host: IP address of your Tapo Hub (H100) - S200B devices are connected via the hub
+
+## Supported Devices
+
+- S200B Smart Button
+
+## Requirements
+
+- Home Assistant 2023.1 or later
+- Tapo Python library (installed automatically)
+
+## Button Click Detection
+
+The integration detects button clicks by polling the trigger logs from the S200B device. When a button is pressed:
+
+1. **Home Assistant Event**: An event `tapo_button_pressed` is fired with:
+   - `click_type`: `single_click` or `double_click`
+   - `event_id`: Unique ID of the event
+   - `timestamp`: Unix timestamp of when the button was pressed
+   - `device_id`: Device identifier
+
+2. **Sensor**: A sensor "Tapo Last Button Press" shows the last click type and includes:
+   - Last event time (ISO format and readable format)
+   - Last event ID
+   - Last event type
+
+### Using Button Events in Automations
+
+You can create automations triggered by button presses:
+
+```yaml
+automation:
+  - alias: "Single Click Action"
+    trigger:
+      - platform: event
+        event_type: tapo_button_pressed
+        event_data:
+          click_type: single_click
+    action:
+      - service: light.toggle
+        target:
+          entity_id: light.example
+
+  - alias: "Double Click Action"
+    trigger:
+      - platform: event
+        event_type: tapo_button_pressed
+        event_data:
+          click_type: double_click
+    action:
+      - service: scene.turn_on
+        target:
+          entity_id: scene.example
+```
+
+## Notes
+
+The integration polls trigger logs every 2 seconds to detect button presses. This provides near real-time detection of single and double clicks.
+
+## Credits
+
+Uses the [tapo](https://github.com/mihai-dinculescu/tapo) library by mihai-dinculescu.
+

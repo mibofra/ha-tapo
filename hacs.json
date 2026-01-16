@@ -1,0 +1,7 @@
+{
+  "name": "Tapo",
+  "render_readme": true,
+  "domains": ["sensor"],
+  "iot_class": "Local Polling"
+}
+

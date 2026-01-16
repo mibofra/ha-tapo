@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tapo Configuration",
+        "description": "Configure your Tapo device integration",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "host": "Hub IP Address (H100)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to Tapo device. Please check your network connection and device IP address.",
+      "invalid_auth": "Invalid credentials. Please check your username and password.",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}
+
