@@ -1,5 +1,23 @@
-# Example automations for Tapo S200B button presses
+# Example automations for Tapo S200B button presses and rotations
 # Copy these to your Home Assistant automations.yaml or create them via the UI
+# 
+# Available event types:
+# - single_click: Single button press
+# - double_click: Double button press
+# - rotate_left: Rotate button counterclockwise (negative rotation_degrees)
+# - rotate_right: Rotate button clockwise (positive rotation_degrees)
+#
+# Event data includes:
+# - click_type: Type of event (single_click, double_click, rotate_left, rotate_right)
+# - device_id: Device identifier (to distinguish between multiple S200B devices)
+# - event_id: Unique event ID
+# - timestamp: Unix timestamp
+# - rotation_degrees: (for rotation events) Absolute value of rotation angle (e.g., 30)
+# - direction: (for rotation events) "left" or "right"
+
+# ============================================================================
+# BASIC CLICK EXAMPLES
+# ============================================================================
 
 # Example 1: Toggle a light with single click (all devices)
 - id: tapo_single_click_toggle_light
@@ -82,6 +100,10 @@
           - light.kitchen
   mode: single
 
+# ============================================================================
+# MULTIPLE DEVICES EXAMPLES
+# ============================================================================
+
 # Example 5: Control different devices based on which button was pressed
 - id: tapo_button_salon_single_click
   alias: "Tapo Bouton Salon - Single Click"
@@ -113,23 +135,11 @@
         entity_id: light.kitchen
   mode: single
 
-# Example 6: Send notification when button is pressed
-- id: tapo_button_notification
-  alias: "Tapo Button - Notification"
-  description: "Send a notification when button is pressed"
-  trigger:
-    - platform: event
-      event_type: tapo_button_pressed
-  action:
-    - service: notify.mobile_app_your_phone  # Replace with your notification service
-      data:
-        title: "Tapo Button Pressed"
-        message: >
-          {{ trigger.event.data.click_type }} detected
-          Device: {{ trigger.event.data.device_id }}
-  mode: single
+# ============================================================================
+# ROTATION EXAMPLES
+# ============================================================================
 
-# Example 7: Rotate left/right to control brightness or volume
+# Example 6: Rotate left/right to control brightness
 - id: tapo_rotate_left
   alias: "Tapo Rotate Left - Decrease Brightness"
   description: "Decrease light brightness when button is rotated left"
@@ -162,10 +172,10 @@
         brightness_step: 25
   mode: single
 
-# Example 8: Use rotation degrees for precise control
+# Example 7: Use rotation degrees for precise control
 - id: tapo_rotate_with_degrees
   alias: "Tapo Rotate - Adjust by Degrees"
-  description: "Adjust brightness based on rotation degrees"
+  description: "Adjust brightness based on rotation degrees (more precise)"
   trigger:
     - platform: event
       event_type: tapo_button_pressed
@@ -203,40 +213,387 @@
                   {{ [0, current - (degrees * 2)] | max }}
   mode: single
 
-# Example 9: Use button to control media player
-- id: tapo_button_media_control
-  alias: "Tapo Button - Media Control"
-  description: "Control media player with button clicks"
+# Example 8: Rotate to control volume
+- id: tapo_rotate_volume_up
+  alias: "Tapo Rotate Right - Volume Up"
+  description: "Increase media player volume when rotated right"
   trigger:
     - platform: event
       event_type: tapo_button_pressed
       event_data:
-        click_type: single_click
+        click_type: rotate_right
+  action:
+    - service: media_player.volume_up
+      target:
+        entity_id: media_player.living_room
+  mode: single
+
+- id: tapo_rotate_volume_down
+  alias: "Tapo Rotate Left - Volume Down"
+  description: "Decrease media player volume when rotated left"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_left
+  action:
+    - service: media_player.volume_down
+      target:
+        entity_id: media_player.living_room
+  mode: single
+
+# Example 9: Rotate to control climate temperature
+- id: tapo_rotate_temperature_up
+  alias: "Tapo Rotate Right - Increase Temperature"
+  description: "Increase thermostat temperature when rotated right"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_right
+  action:
+    - service: climate.set_temperature
+      target:
+        entity_id: climate.living_room
+      data:
+        temperature: >
+          {% set current = states.climate.living_room.attributes.temperature | default(20) %}
+          {{ current + 0.5 }}
+  mode: single
+
+- id: tapo_rotate_temperature_down
+  alias: "Tapo Rotate Left - Decrease Temperature"
+  description: "Decrease thermostat temperature when rotated left"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_left
+  action:
+    - service: climate.set_temperature
+      target:
+        entity_id: climate.living_room
+      data:
+        temperature: >
+          {% set current = states.climate.living_room.attributes.temperature | default(20) %}
+          {{ current - 0.5 }}
+  mode: single
+
+# ============================================================================
+# COMBINED EXAMPLES (Clicks + Rotations)
+# ============================================================================
+
+# Example 10: Complete button control - Click to toggle, rotate to adjust
+- id: tapo_complete_light_control
+  alias: "Tapo Complete Light Control"
+  description: "Single click toggles, double click turns off, rotate adjusts brightness"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
   action:
     - choose:
         - conditions:
-            - condition: state
-              entity_id: media_player.living_room
-              state: "playing"
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'single_click' }}"
           sequence:
-            - service: media_player.media_pause
+            - service: light.toggle
+              target:
+                entity_id: light.living_room
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'double_click' }}"
+          sequence:
+            - service: light.turn_off
+              target:
+                entity_id: light.living_room
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_right' }}"
+          sequence:
+            - service: light.turn_on
+              target:
+                entity_id: light.living_room
+              data:
+                brightness_step: 25
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_left' }}"
+          sequence:
+            - service: light.turn_on
+              target:
+                entity_id: light.living_room
+              data:
+                brightness_step: -25
+  mode: single
+
+# Example 11: Control media player with clicks and rotations
+- id: tapo_media_player_control
+  alias: "Tapo Media Player Control"
+  description: "Single click play/pause, double click stop, rotate for volume"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+  action:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'single_click' }}"
+          sequence:
+            - choose:
+                - conditions:
+                    - condition: state
+                      entity_id: media_player.living_room
+                      state: "playing"
+                  sequence:
+                    - service: media_player.media_pause
+                      target:
+                        entity_id: media_player.living_room
+                - conditions:
+                    - condition: state
+                      entity_id: media_player.living_room
+                      state: "paused"
+                  sequence:
+                    - service: media_player.media_play
+                      target:
+                        entity_id: media_player.living_room
+                - conditions:
+                    - condition: state
+                      entity_id: media_player.living_room
+                      state: "idle"
+                  sequence:
+                    - service: media_player.media_play
+                      target:
+                        entity_id: media_player.living_room
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'double_click' }}"
+          sequence:
+            - service: media_player.media_stop
               target:
                 entity_id: media_player.living_room
         - conditions:
-            - condition: state
-              entity_id: media_player.living_room
-              state: "paused"
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_right' }}"
           sequence:
-            - service: media_player.media_play
+            - service: media_player.volume_up
               target:
                 entity_id: media_player.living_room
         - conditions:
-            - condition: state
-              entity_id: media_player.living_room
-              state: "idle"
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_left' }}"
           sequence:
-            - service: media_player.media_play
+            - service: media_player.volume_down
               target:
                 entity_id: media_player.living_room
   mode: single
 
+# ============================================================================
+# NOTIFICATION AND LOGGING EXAMPLES
+# ============================================================================
+
+# Example 12: Send notification when button is pressed
+- id: tapo_button_notification
+  alias: "Tapo Button - Notification"
+  description: "Send a notification when button is pressed or rotated"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+  action:
+    - service: notify.mobile_app_your_phone  # Replace with your notification service
+      data:
+        title: "Tapo Button Event"
+        message: >
+          Event: {{ trigger.event.data.click_type }}
+          Device: {{ trigger.event.data.device_id }}
+          {% if trigger.event.data.rotation_degrees is defined %}
+          Rotation: {{ trigger.event.data.rotation_degrees }}°
+          {% endif %}
+  mode: single
+
+# Example 13: Log all button events
+- id: tapo_log_all_events
+  alias: "Tapo Log All Events"
+  description: "Log all button events to Home Assistant log"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+  action:
+    - service: system_log.write
+      data:
+        message: >
+          Tapo Button Event: {{ trigger.event.data.click_type }}
+          Device: {{ trigger.event.data.device_id }}
+          Event ID: {{ trigger.event.data.event_id }}
+          {% if trigger.event.data.rotation_degrees is defined %}
+          Rotation: {{ trigger.event.data.rotation_degrees }}° ({{ trigger.event.data.direction }})
+          {% endif %}
+        level: info
+  mode: single
+
+# ============================================================================
+# ADVANCED EXAMPLES
+# ============================================================================
+
+# Example 14: Different actions based on rotation speed (multiple rotations)
+- id: tapo_fast_rotation_detection
+  alias: "Tapo Fast Rotation Detection"
+  description: "Detect fast rotations (multiple rotations in short time)"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_right
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_left
+  condition:
+    - condition: template
+      value_template: >
+        {% set now = now().timestamp() %}
+        {% set last_event = state_attr('sensor.bouton_salon_last_button_press', 'last_event_timestamp') | default(0) | int %}
+        {{ (now - last_event) < 2 }}
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.living_room
+      data:
+        brightness: >
+          {% if trigger.event.data.click_type == 'rotate_right' %}
+            {{ [255, states.light.living_room.attributes.brightness | default(0) + 50] | min }}
+          {% else %}
+            {{ [0, states.light.living_room.attributes.brightness | default(255) - 50] | max }}
+          {% endif %}
+  mode: single
+
+# Example 15: Rotate to cycle through scenes
+- id: tapo_rotate_scene_cycle
+  alias: "Tapo Rotate - Cycle Scenes"
+  description: "Rotate right to next scene, rotate left to previous scene"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_right
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_left
+  action:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_right' }}"
+          sequence:
+            - service: scene.turn_on
+              target:
+                entity_id: >
+                  {% set scenes = ['scene.morning', 'scene.day', 'scene.evening', 'scene.night'] %}
+                  {% set current = state_attr('input_select.current_scene', 'options') | default(['scene.morning']) | first %}
+                  {% set idx = scenes.index(current) if current in scenes else 0 %}
+                  {{ scenes[(idx + 1) % scenes|length] }}
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_left' }}"
+          sequence:
+            - service: scene.turn_on
+              target:
+                entity_id: >
+                  {% set scenes = ['scene.morning', 'scene.day', 'scene.evening', 'scene.night'] %}
+                  {% set current = state_attr('input_select.current_scene', 'options') | default(['scene.morning']) | first %}
+                  {% set idx = scenes.index(current) if current in scenes else 0 %}
+                  {{ scenes[(idx - 1) % scenes|length] }}
+  mode: single
+
+# Example 16: Rotate to adjust cover position
+- id: tapo_rotate_cover_control
+  alias: "Tapo Rotate - Cover Control"
+  description: "Rotate to open/close covers"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_right
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_left
+  action:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_right' }}"
+          sequence:
+            - service: cover.open_cover
+              target:
+                entity_id: cover.blinds_living_room
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_left' }}"
+          sequence:
+            - service: cover.close_cover
+              target:
+                entity_id: cover.blinds_living_room
+  mode: single
+
+# Example 17: Rotate to adjust fan speed
+- id: tapo_rotate_fan_speed
+  alias: "Tapo Rotate - Fan Speed"
+  description: "Rotate to adjust fan speed"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_right
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_left
+  action:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_right' }}"
+          sequence:
+            - service: fan.increase_speed
+              target:
+                entity_id: fan.living_room
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_left' }}"
+          sequence:
+            - service: fan.decrease_speed
+              target:
+                entity_id: fan.living_room
+  mode: single
+
+# Example 18: Rotate to adjust input number
+- id: tapo_rotate_input_number
+  alias: "Tapo Rotate - Input Number"
+  description: "Rotate to adjust an input number entity"
+  trigger:
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_right
+    - platform: event
+      event_type: tapo_button_pressed
+      event_data:
+        click_type: rotate_left
+  action:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_right' }}"
+          sequence:
+            - service: input_number.increment
+              target:
+                entity_id: input_number.brightness_level
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.event.data.click_type == 'rotate_left' }}"
+          sequence:
+            - service: input_number.decrement
+              target:
+                entity_id: input_number.brightness_level
+  mode: single

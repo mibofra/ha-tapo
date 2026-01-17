@@ -121,17 +121,6 @@ class TapoButtonCoordinator(DataUpdateCoordinator):
                 event_data,
             )
             _LOGGER.info("Fired button event for device %s: %s (ID: %s)", self.device_id, event_type, event_id)
-            
-            self.hass.bus.async_fire(
-                f"{DOMAIN}_button_pressed",
-                {
-                    "device_id": self.device_id,
-                    "click_type": event_type,
-                    "event_id": event_id,
-                    "timestamp": timestamp,
-                },
-            )
-            _LOGGER.info("Fired button event for device %s: %s (ID: %s)", self.device_id, event_type, event_id)
 
 
 class TapoButtonSensor(CoordinatorEntity, SensorEntity):
