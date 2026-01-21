@@ -126,7 +126,7 @@ class TapoOptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_PASSWORD: user_input[CONF_PASSWORD],
                         CONF_HOST: user_input[CONF_HOST],
                     })
-                    await self.hass.config_entries.async_update_entry(
+                    self.hass.config_entries.async_update_entry(
                         config_entry, data=updated_data
                     )
                     current_interval = (
